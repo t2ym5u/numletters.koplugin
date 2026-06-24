@@ -200,7 +200,7 @@ end
 
 function CLScreen:_buildLettersLayout()
     local sw    = DeviceScreen:getWidth()
-    local sh    = DeviceScreen:getHeight()
+    local sh = DeviceScreen:getHeight()
     local is_fr = self.lang == "fr"
     local btn_w = math.floor(sw * 0.92)
 
@@ -230,7 +230,6 @@ function CLScreen:_buildLettersLayout()
               callback = function() self:onRevealLetters() end },
             { text = is_fr and "Nouvelle manche" or "New round",
               callback = function() self:onNewLetters() end },
-            self:makeCloseButtonConfig(),
         }}
     else  -- revealed
         btn_rows = {{
@@ -238,7 +237,6 @@ function CLScreen:_buildLettersLayout()
               callback = function() self:onNewLetters() end },
             { text = is_fr and "Manche chiffres" or "Numbers round",
               callback = function() self:onNewNumbers() end },
-            self:makeCloseButtonConfig(),
         }}
     end
 
@@ -366,7 +364,7 @@ end
 
 function CLScreen:_buildNumbersLayout()
     local sw    = DeviceScreen:getWidth()
-    local sh    = DeviceScreen:getHeight()
+    local sh = DeviceScreen:getHeight()
     local is_fr = self.lang == "fr"
     local btn_w = math.floor(sw * 0.92)
 
@@ -378,7 +376,6 @@ function CLScreen:_buildNumbersLayout()
               callback = function() self:onRevealNumbers() end },
             { text = is_fr and "Manche lettres" or "Letters round",
               callback = function() self:onNewLetters() end },
-            self:makeCloseButtonConfig(),
         }}
     else
         btn_rows = {{
@@ -386,7 +383,6 @@ function CLScreen:_buildNumbersLayout()
               callback = function() self:onNewNumbers() end },
             { text = is_fr and "Manche lettres" or "Letters round",
               callback = function() self:onNewLetters() end },
-            self:makeCloseButtonConfig(),
         }}
     end
 

@@ -12,6 +12,12 @@ Two round types alternate around the table:
 
 No typing during play — pen and paper only.
 
+## Rules
+
+**Letters round:** Draw 9 letters (Vowel / Consonant). Find the longest word using each letter at most once. Longest word wins; tap **Solutions** to reveal all valid words.
+
+**Numbers round:** 6 numbers drawn (1–100) + a 3-digit target. Combine them with +, −, ×, ÷ to reach (or get closest to) the target. Exact match scores 10 pts; within 1–5 scores 7; within 6–10 scores 3.
+
 ## Features
 
 - **Letters mode** — 9-letter draw with Vowel / Consonant buttons, 45-second countdown
