@@ -19,7 +19,7 @@ local TextWidget     = require("ui/widget/textwidget")
 local UIManager      = require("ui/uimanager")
 local VerticalGroup  = require("ui/widget/verticalgroup")
 local VerticalSpan   = require("ui/widget/verticalspan")
-local _              = require("gettext")
+local _              = require("i18n")
 
 local MenuHelper = require("menu_helper")
 local ScreenBase = require("screen_base")
@@ -30,7 +30,7 @@ local DeviceScreen = Device.screen
 local LETTERS_DURATION = 45
 local NUMBERS_DURATION = 45
 
-local RULES_EN = _([[
+local GAME_RULES_EN = _([[
 Chiffres et Lettres — Rules
 
 LETTERS round:
@@ -40,7 +40,7 @@ NUMBERS round:
 6 random numbers (1–100) are drawn and a 3-digit target is shown. Players combine numbers using +, −, ×, ÷ to reach (or get closest to) the target. Only tap Solutions after everyone has written their answer.
 ]])
 
-local RULES_FR = [[
+local GAME_RULES_FR = [[
 Chiffres et Lettres — Règles
 
 Manche LETTRES :
@@ -221,7 +221,7 @@ function CLScreen:_buildLettersLayout()
               callback = function() self:onNewNumbers() end },
             { id = "lang_btn", text = self.lang == "fr" and "FR" or "EN",
               callback = function() self:openLangMenu() end },
-            self:makeRulesButtonConfig(RULES_EN, RULES_FR),
+            self:makeRulesButtonConfig(GAME_RULES_EN, GAME_RULES_FR),
             self:makeCloseButtonConfig(),
         }}
     elseif self.round_phase == "playing" then
@@ -319,11 +319,8 @@ function CLScreen:_buildLettersLayout()
 
     local vs = VerticalSpan:new{ width = Size.span.vertical_large }
 
-    self.layout = VerticalGroup:new{
+    local content = VerticalGroup:new{
         align = "center",
-        vs,
-        buttons,
-        vs,
         instr_group,
         vs,
         tiles_widget,
@@ -331,6 +328,7 @@ function CLScreen:_buildLettersLayout()
         timer_group,
         solutions_group,
     }
+    self:buildPortraitLayout(buttons, content, nil)
 end
 
 function CLScreen:_buildLetterTiles(sw)
@@ -445,11 +443,8 @@ function CLScreen:_buildNumbersLayout()
     local vs = VerticalSpan:new{ width = Size.span.vertical_large }
     local vs2 = VerticalSpan:new{ width = Size.span.vertical_large * 3 }
 
-    self.layout = VerticalGroup:new{
+    local content = VerticalGroup:new{
         align = "center",
-        vs,
-        buttons,
-        vs,
         timer_group,
         vs2,
         nums_w,
@@ -459,6 +454,7 @@ function CLScreen:_buildNumbersLayout()
         target_w,
         sol_group,
     }
+    self:buildPortraitLayout(buttons, content, nil)
 end
 
 -- ---------------------------------------------------------------------------
