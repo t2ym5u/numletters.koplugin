@@ -1,6 +1,6 @@
 local _dir = debug.getinfo(1, "S").source:sub(2):match("(.*[/\\])") or "./"
 -- board.lua and words_*.lua are symlinked from boggle.koplugin
-package.path = _dir .. "?.lua;" .. _dir .. "common/?.lua;" .. _dir .. "../game-common/?.lua;" .. package.path
+package.path = _dir .. "?.lua;" .. _dir .. "common/?.lua;" .. package.path
 
 local function lrequire(name)
     local key = _dir .. name
