@@ -207,6 +207,14 @@ function CLScreen:_buildLettersLayout()
     -- Drawn letter tiles
     local tiles_widget = self:_buildLetterTiles(sw)
 
+    local title_bar = self:buildTitleBar(is_fr and "Chiffres et Lettres" or "Numbers and Letters", function()
+        return {
+            { text = is_fr and "Langue / Language" or "Language / Langue",
+              callback = function() self:openLangMenu() end },
+            self:makeRulesButtonConfig(GAME_RULES_EN, GAME_RULES_FR),
+        }
+    end)
+
     -- Buttons depend on round_phase
     local btn_rows = {}
     if self.round_phase == "setup" then
@@ -219,10 +227,6 @@ function CLScreen:_buildLettersLayout()
         }, {
             { text = is_fr and "Manche chiffres" or "Numbers round",
               callback = function() self:onNewNumbers() end },
-            { id = "lang_btn", text = self.lang == "fr" and "FR" or "EN",
-              callback = function() self:openLangMenu() end },
-            self:makeRulesButtonConfig(GAME_RULES_EN, GAME_RULES_FR),
-            self:makeCloseButtonConfig(),
         }}
     elseif self.round_phase == "playing" then
         btn_rows = {{
@@ -328,7 +332,7 @@ function CLScreen:_buildLettersLayout()
         timer_group,
         solutions_group,
     }
-    self:buildPortraitLayout(buttons, content, nil)
+    self:buildPortraitLayout(title_bar, content, buttons)
 end
 
 function CLScreen:_buildLetterTiles(sw)
@@ -365,6 +369,14 @@ function CLScreen:_buildNumbersLayout()
     local sh = DeviceScreen:getHeight()
     local is_fr = self.lang == "fr"
     local btn_w = math.floor(sw * 0.92)
+
+    local title_bar = self:buildTitleBar(is_fr and "Chiffres et Lettres" or "Numbers and Letters", function()
+        return {
+            { text = is_fr and "Langue / Language" or "Language / Langue",
+              callback = function() self:openLangMenu() end },
+            self:makeRulesButtonConfig(GAME_RULES_EN, GAME_RULES_FR),
+        }
+    end)
 
     -- Buttons
     local btn_rows
@@ -454,7 +466,7 @@ function CLScreen:_buildNumbersLayout()
         target_w,
         sol_group,
     }
-    self:buildPortraitLayout(buttons, content, nil)
+    self:buildPortraitLayout(title_bar, content, buttons)
 end
 
 -- ---------------------------------------------------------------------------
