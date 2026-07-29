@@ -1,4 +1,4 @@
-# chiffreslettres.koplugin
+# numletters.koplugin
 
 A **Chiffres et Lettres** display plugin for [KOReader](https://github.com/koreader/koreader) — the classic French TV word-and-numbers game for table play.
 
@@ -66,8 +66,8 @@ Adjust scoring to your house rules — the plugin tracks no scores; players use 
 ### Via KOReader Plugin Manager
 
 ```
-chiffreslettres.koplugin/ → KOReader plugins/ folder
-game-common/               → alongside plugins/ (shared library)
+numletters.koplugin/ → KOReader plugins/ folder
+game-common/          → alongside plugins/ (shared library)
 ```
 
 > **Note:** the zip already bundles `board.lua`, `words_en.lua` and `words_fr.lua`
@@ -75,13 +75,13 @@ game-common/               → alongside plugins/ (shared library)
 
 ### Manual
 
-1. Download `chiffreslettres.zip` from [Releases](../../releases).
+1. Download `numletters.zip` from [Releases](../../releases).
 2. Extract to your KOReader `plugins/` directory.
 3. Restart KOReader — **Chiffres et Lettres** appears in the Tools menu.
 
 ## Development
 
-`chiffreslettres.koplugin/` lives inside the
+`numletters.koplugin/` lives inside the
 [koreader-plugins](https://github.com/t2ym5u/koreader-plugins) monorepo.
 `board.lua`, `words_en.lua` and `words_fr.lua` are symlinks to `boggle.koplugin/`
 in the dev tree; they are copied as real files into the distribution zip.

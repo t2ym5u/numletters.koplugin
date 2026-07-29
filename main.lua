@@ -15,7 +15,7 @@ local _          = require("gettext")
 local Screen     = lrequire("screen")
 
 local ChiffresLettres = PluginBase:extend{
-    name      = "chiffreslettres",
+    name      = "numletters",
     menu_text = _("Chiffres et Lettres"),
     menu_hint = "tools",
 }
