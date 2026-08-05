@@ -31,7 +31,7 @@ local LETTERS_DURATION = 45
 local NUMBERS_DURATION = 45
 
 local GAME_RULES_EN = _([[
-Chiffres et Lettres — Rules
+Numbers and Letters — Rules
 
 LETTERS round:
 Draw 9 letters by tapping Vowel or Consonant. When all 9 are drawn, the timer starts. Each player finds the longest possible word using each letter at most once. After time, tap Solutions to see all valid words.
@@ -57,7 +57,8 @@ Manche CHIFFRES :
 local CLScreen = ScreenBase:extend{}
 
 function CLScreen:init()
-    self.lang = self.plugin:getSetting("lang", "fr")
+    local sys_lang = require("i18n").lang()
+    self.lang = self.plugin:getSetting("lang", (sys_lang == "fr") and "fr" or "en")
     self.board = Board:new{ lang = self.lang }
     -- phase within a round: "setup" | "playing" | "revealed"
     self.round_phase    = "setup"

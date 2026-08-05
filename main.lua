@@ -11,12 +11,14 @@ local function lrequire(name)
 end
 
 local PluginBase = require("plugin_base")
-local _          = require("gettext")
+local _          = require("i18n")
+
+require("i18n").extend(lrequire("i18n_fr"))
 local Screen     = lrequire("screen")
 
 local ChiffresLettres = PluginBase:extend{
     name      = "numletters",
-    menu_text = _("Chiffres et Lettres"),
+    menu_text = _("Numbers and Letters"),
     menu_hint = "tools",
 }
 
