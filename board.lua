@@ -84,24 +84,30 @@ function Board:findSolutions()
     if self.solutions then return self.solutions end
     if not self.dict or #self.letters == 0 then self.solutions = {}; return {} end
 
-    -- Build availability map
+    -- Availability map, keyed the way the dictionary stores words (lowercase),
+    -- so the scan below never has to build an uppercase copy of each entry.
+    -- That matters: this walks the whole dictionary, which is ~105k words in
+    -- English, and one allocation per word dominated the round otherwise.
     local available = {}
     for _, l in ipairs(self.letters) do
-        available[l] = (available[l] or 0) + 1
+        local k = l:lower()
+        available[k] = (available[k] or 0) + 1
     end
 
+    local max_len = #self.letters
     local results = {}
     for word in pairs(self.dict) do
-        local w = word:upper()
-        if #w >= 2 and #w <= #self.letters then
+        local len = #word
+        if len >= 2 and len <= max_len then
             local used = {}
             local ok   = true
-            for k = 1, #w do
-                local ch = w:sub(k, k)
-                used[ch] = (used[ch] or 0) + 1
-                if (used[ch] or 0) > (available[ch] or 0) then
+            for k = 1, len do
+                local ch = word:sub(k, k)
+                local n  = (used[ch] or 0) + 1
+                if n > (available[ch] or 0) then
                     ok = false; break
                 end
+                used[ch] = n
             end
             if ok then results[#results + 1] = word end
         end

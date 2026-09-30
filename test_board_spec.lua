@@ -94,3 +94,37 @@ describe("NumLetters Board", function()
         end)
     end)
 end)
+
+describe("English dictionary", function()
+    local DIR2 = debug.getinfo(1, "S").source:sub(2):match("(.*[/\\])") or "./"
+    local W = assert(loadfile(DIR2 .. "words_en.lua"))()
+
+    it("knows ordinary English words the old 1842-word stub did not", function()
+        for _, word in ipairs({ "puzzle", "reader", "orange", "strength", "jazz",
+                                "xylophone", "quiet", "knight", "rhythm",
+                                "crossword", "elephant" }) do
+            assert.is_true(W[word] == true, word .. " missing from the dictionary")
+        end
+    end)
+
+    it("covers 3 to 9 letters -- numletters draws up to 9 tiles", function()
+        local by_len = {}
+        for word in pairs(W) do by_len[#word] = (by_len[#word] or 0) + 1 end
+        for len = 3, 9 do
+            assert.is_true((by_len[len] or 0) > 500,
+                "only " .. (by_len[len] or 0) .. " words of length " .. len)
+        end
+        assert.is_nil(by_len[2])
+        assert.is_nil(by_len[10])
+    end)
+
+    it("holds nothing but lowercase a-z", function()
+        local checked = 0
+        for word in pairs(W) do
+            assert.is_nil(word:match("[^a-z]"), word .. " is not plain lowercase")
+            checked = checked + 1
+        end
+        assert.is_true(checked > 100000)
+    end)
+end)
+
