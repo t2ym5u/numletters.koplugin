@@ -23,7 +23,7 @@ No typing during play — pen and paper only.
 - **Letters mode** — 9-letter draw with Vowel / Consonant buttons, 45-second countdown
 - **Numbers mode** — 6 numbers + 3-digit target, 45-second countdown
 - **Solutions reveal** — all valid dictionary words grouped and sorted by length (letters mode)
-- **Two dictionaries** — FR and EN word lists (borrowed from `boggle.koplugin`)
+- **Two dictionaries** — FR (47,435 words, 3-7 letters) and EN (105,145 words, 3-9 letters, from the Public-Domain [ENABLE](https://github.com/dolph/dictionary) list); shared with `boggle.koplugin`. Only the English list covers the full 9-tile draw, so 8- and 9-letter solutions show up in EN rounds only.
 - **E-ink friendly** — tile display is static during play; only the timer digit refreshes in fast/A2 mode
 
 ## Controls
