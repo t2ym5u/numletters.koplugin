@@ -2,6 +2,10 @@
 
 A **Chiffres et Lettres** display plugin for [KOReader](https://github.com/koreader/koreader) — the classic French TV word-and-numbers game for table play.
 
+## Screenshot
+
+![Screenshot](images/numletters.png)
+
 ## Concept
 
 Two round types alternate around the table:
