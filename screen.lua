@@ -7,19 +7,23 @@ local function lrequire(name)
     return package.loaded[key]
 end
 
-local ButtonTable    = require("ui/widget/buttontable")
-local Device         = require("device")
-local Font           = require("ui/font")
-local FrameContainer = require("ui/widget/container/framecontainer")
-local HorizontalGroup = require("ui/widget/horizontalgroup")
-local HorizontalSpan  = require("ui/widget/horizontalspan")
-local Size           = require("ui/size")
-local TextBoxWidget  = require("ui/widget/textboxwidget")
-local TextWidget     = require("ui/widget/textwidget")
-local UIManager      = require("ui/uimanager")
-local VerticalGroup  = require("ui/widget/verticalgroup")
-local VerticalSpan   = require("ui/widget/verticalspan")
-local _              = require("i18n")
+local Blitbuffer       = require("ffi/blitbuffer")
+local Device           = require("device")
+local Font             = require("ui/font")
+local Geom             = require("ui/geometry")
+local HorizontalGroup  = require("ui/widget/horizontalgroup")
+local HorizontalSpan   = require("ui/widget/horizontalspan")
+local RenderText       = require("ui/rendertext")
+local ScrollTextWidget = require("ui/widget/scrolltextwidget")
+local Size             = require("ui/size")
+local TextBoxWidget    = require("ui/widget/textboxwidget")
+local TextWidget       = require("ui/widget/textwidget")
+local UIManager        = require("ui/uimanager")
+local VerticalGroup    = require("ui/widget/verticalgroup")
+local VerticalSpan     = require("ui/widget/verticalspan")
+local Widget           = require("ui/widget/widget")
+local _                = require("i18n")
+local T                = require("ffi/util").template
 
 local MenuHelper = require("menu_helper")
 local ScreenBase = require("screen_base")
@@ -49,6 +53,69 @@ Tirez 9 lettres en appuyant sur Voyelle ou Consonne. Quand les 9 sont tirées, l
 Manche CHIFFRES :
 6 nombres aléatoires (1–100) sont tirés et une cible à 3 chiffres est affichée. Les joueurs combinent les nombres avec +, −, ×, ÷ pour atteindre (ou approcher au plus près) la cible. Appuyez sur Solutions seulement après que tout le monde a écrit sa réponse.
 ]]
+
+-- ---------------------------------------------------------------------------
+-- TileRow — a row of equal square tiles, one per letter or number. Empty
+-- slots (letters not drawn yet) are drawn as light outlines.
+-- ---------------------------------------------------------------------------
+
+-- Font:getFace() scales its size by the screen DPI; this takes a pixel size.
+local DPI_SCALE = DeviceScreen:scaleBySize(1000) / 1000
+local function pxFace(px)
+    return Font:getFace("cfont", math.max(8, math.floor(px / DPI_SCALE)))
+end
+
+local TileRow = Widget:extend{
+    values   = nil,   -- list of strings
+    slots    = 9,
+    width    = 300,
+    max_cell = 100,
+}
+
+function TileRow:init()
+    local slots = math.max(1, self.slots)
+    local gap   = math.max(2, math.floor(self.width / 100))
+    local cell  = math.floor((self.width - (slots - 1) * gap) / slots)
+    cell = math.max(16, math.min(cell, self.max_cell))
+    self.cell, self.gap = cell, gap
+    self.dimen = Geom:new{ x = 0, y = 0, w = slots * cell + (slots - 1) * gap, h = cell }
+
+    -- One face for the whole row: the largest whose widest label fits a
+    -- tile. Measured without a width cap, ink height = y_top + y_bottom.
+    local px = math.floor(cell * 0.6)
+    while true do
+        local face = pxFace(px)
+        local fits = true
+        for _, v in ipairs(self.values or {}) do
+            local m = RenderText:sizeUtf8Text(0, cell * 10, face, v, true, false)
+            if m.x > cell * 0.85 or (m.y_top + m.y_bottom) > cell * 0.7 then
+                fits = false
+                break
+            end
+        end
+        if fits or px <= 8 then self.face = face break end
+        px = px - 2
+    end
+end
+
+function TileRow:paintTo(bb, x, y)
+    self.dimen.x, self.dimen.y = x, y
+    local cell, gap = self.cell, self.gap
+    local thick = Size.border.thick
+    for i = 1, self.slots do
+        local tx = x + (i - 1) * (cell + gap)
+        local v  = self.values and self.values[i]
+        if v then
+            bb:paintBorder(tx, y, cell, cell, thick, Blitbuffer.COLOR_BLACK)
+            local m  = RenderText:sizeUtf8Text(0, cell * 10, self.face, v, true, false)
+            local lx = tx + math.floor((cell - m.x) / 2)
+            local ly = y + math.floor(cell / 2 + (m.y_top - m.y_bottom) / 2)
+            RenderText:renderUtf8Text(bb, lx, ly, self.face, v, true, false, Blitbuffer.COLOR_BLACK)
+        else
+            bb:paintBorder(tx, y, cell, cell, Size.border.default, Blitbuffer.COLOR_GRAY)
+        end
+    end
+end
 
 -- ---------------------------------------------------------------------------
 -- CLScreen
@@ -152,9 +219,11 @@ function CLScreen:onNewNumbers()
     self:_stopCountdown()
     self.board:startNumbers()
     self.round_phase = "playing"
+    -- Start before building, so the timer shows the full duration rather
+    -- than whatever the previous round left in time_remaining.
+    self:_startCountdown(NUMBERS_DURATION)
     self:buildLayout()
     UIManager:setDirty(self, function() return "ui", self.dimen end)
-    self:_startCountdown(NUMBERS_DURATION)
 end
 
 function CLScreen:onRevealNumbers()
@@ -166,7 +235,7 @@ end
 
 function CLScreen:openLangMenu()
     MenuHelper.openPickerMenu{
-        title      = "Language / Langue",
+        title      = _("Language"),
         items      = { { id = "fr", text = "Français" }, { id = "en", text = "English" } },
         current_id = self.lang,
         parent     = self,
@@ -181,293 +250,227 @@ function CLScreen:openLangMenu()
 end
 
 -- ---------------------------------------------------------------------------
--- Layout dispatcher
+-- Layout
 -- ---------------------------------------------------------------------------
 
 function CLScreen:buildLayout()
-    local phase = self.board.phase
-    if phase == "letters" then
-        self:_buildLettersLayout()
+    local is_landscape = self:isLandscape()
+    local is_letters   = self.board.phase == "letters"
+
+    local title_bar = self:buildTitleBar(_("Numbers and Letters"), function()
+        return {
+            { text = _("New game"), callback = function() self:onNewLetters() end },
+            { text = T(_("Language: %1"), self.lang:upper()),
+              callback = function() self:openLangMenu() end },
+            self:makeRulesButtonConfig(GAME_RULES_EN, GAME_RULES_FR),
+        }
+    end)
+
+    self.status_text:setMaxWidth(self:getControlsWidth())
+    local controls = VerticalGroup:new{
+        align = "center",
+        self.status_text,
+        VerticalSpan:new{ width = Size.span.vertical_large },
+        self:buildActionBar(is_letters and self:_lettersButtons() or self:_numbersButtons()),
+    }
+
+    local budget_w, budget_h = self:getBoardBudget(title_bar, controls)
+    local board = is_letters and self:_buildLettersBoard(budget_w, budget_h)
+                              or self:_buildNumbersBoard(budget_w, budget_h)
+
+    if is_landscape then
+        self:buildLandscapeLayout(title_bar, HorizontalGroup:new{
+            align = "center",
+            board,
+            HorizontalSpan:new{ width = self:getGutter() },
+            controls,
+        })
     else
-        self:_buildNumbersLayout()
+        self:buildPortraitLayout(title_bar, board,
+            VerticalGroup:new{ align = "center", controls, VerticalSpan:new{ width = self:getGutter() } })
     end
     self[1] = self.layout
     self:updateStatus()
 end
 
+-- Large countdown shown while a round is being played, or nil.
+function CLScreen:_buildTimer(budget_w, budget_h)
+    self.timer_widget = nil
+    if self.round_phase ~= "playing" then return nil end
+    self.timer_widget = TextWidget:new{
+        text      = self:_timerText(),
+        face      = pxFace(math.min(budget_w, budget_h) * 0.10),
+        max_width = budget_w,
+    }
+    return self.timer_widget
+end
+
 -- ---------------------------------------------------------------------------
--- Letters layout
+-- Letters round
 -- ---------------------------------------------------------------------------
 
-function CLScreen:_buildLettersLayout()
-    local sw    = DeviceScreen:getWidth()
-    local sh = DeviceScreen:getHeight()
-    local is_fr = self.lang == "fr"
-    local btn_w = math.floor(sw * 0.92)
-
-    -- Drawn letter tiles
-    local tiles_widget = self:_buildLetterTiles(sw)
-
-    local title_bar = self:buildTitleBar(is_fr and "Chiffres et Lettres" or "Numbers and Letters", function()
-        return {
-            { text = is_fr and "Langue / Language" or "Language / Langue",
-              callback = function() self:openLangMenu() end },
-            self:makeRulesButtonConfig(GAME_RULES_EN, GAME_RULES_FR),
-        }
-    end)
-
-    -- Buttons depend on round_phase
-    local btn_rows = {}
+function CLScreen:_lettersButtons()
     if self.round_phase == "setup" then
-        local drawn = #self.board.letters
-        local v_text = is_fr and string.format("Voyelle (%d)", drawn) or string.format("Vowel (%d)", drawn)
-        local c_text = is_fr and string.format("Consonne (%d)", drawn) or string.format("Consonant (%d)", drawn)
-        btn_rows = {{
-            { text = v_text, callback = function() self:onDrawVowel() end },
-            { text = c_text, callback = function() self:onDrawConsonant() end },
+        return {{
+            { text = _("Vowel"),
+              callback = function() self:onDrawVowel() end },
+            { text = _("Consonant"),
+              callback = function() self:onDrawConsonant() end },
         }, {
-            { text = is_fr and "Manche chiffres" or "Numbers round",
+            { text = _("Numbers round"),
               callback = function() self:onNewNumbers() end },
         }}
     elseif self.round_phase == "playing" then
-        btn_rows = {{
-            { text = is_fr and "Solutions" or "Solutions",
+        return {{
+            { text = _("Solutions"),
               callback = function() self:onRevealLetters() end },
-            { text = is_fr and "Nouvelle manche" or "New round",
+            { text = _("New round"),
               callback = function() self:onNewLetters() end },
-        }}
-    else  -- revealed
-        btn_rows = {{
-            { text = is_fr and "Nouvelle manche lettres" or "New letters round",
-              callback = function() self:onNewLetters() end },
-            { text = is_fr and "Manche chiffres" or "Numbers round",
-              callback = function() self:onNewNumbers() end },
         }}
     end
+    return {{
+        { text = _("New letters round"),
+          callback = function() self:onNewLetters() end },
+        { text = _("Numbers round"),
+          callback = function() self:onNewNumbers() end },
+    }}
+end
 
-    local buttons = ButtonTable:new{
-        shrink_unneeded_width = true,
-        width   = btn_w,
-        buttons = btn_rows,
+function CLScreen:_solutionsText()
+    local sols = self.board:findSolutions()
+    if #sols == 0 then
+        return _("No words found.")
+    end
+    -- Group by length
+    local by_len = {}
+    for _, w in ipairs(sols) do
+        local l = #w
+        by_len[l] = by_len[l] or {}
+        by_len[l][#by_len[l] + 1] = w
+    end
+    local lines = {}
+    local max_l = 0
+    for l in pairs(by_len) do if l > max_l then max_l = l end end
+    for l = max_l, 2, -1 do
+        local words = by_len[l]
+        if words then
+            local label = T(_("%1 letters (%2): "), l, #words)
+            lines[#lines + 1] = label .. table.concat(words, ", ")
+        end
+    end
+    lines[#lines + 1] = ""
+    lines[#lines + 1] = #sols == 1 and _("Total: 1 word") or T(_("Total: %1 words"), #sols)
+    return table.concat(lines, "\n")
+end
+
+-- Nine letter slots, always all drawn so the round's shape is visible from
+-- the first tap; above them the instruction (setup) or the timer (playing),
+-- below them the solutions once revealed.
+function CLScreen:_buildLettersBoard(budget_w, budget_h)
+    local vs    = Size.span.vertical_large
+    local tiles = TileRow:new{
+        values   = self.board.letters,
+        slots    = 9,
+        width    = budget_w,
+        max_cell = math.floor(budget_h * 0.3),
     }
 
-    -- Timer (only when playing)
-    local timer_group = VerticalGroup:new{ align = "center" }
-    self.timer_widget = nil
-    if self.round_phase == "playing" then
-        local timer_fs = math.max(20, math.floor(math.min(sw, sh) * 0.10))
-        self.timer_widget = TextWidget:new{
-            text = self:_timerText(),
-            face = Font:getFace("cfont", timer_fs),
-        }
-        timer_group[#timer_group + 1] = self.timer_widget
-        timer_group[#timer_group + 1] = VerticalSpan:new{ width = Size.span.vertical_large }
-    end
-
-    -- Solutions (only when revealed)
-    local solutions_group = VerticalGroup:new{ align = "center" }
-    if self.round_phase == "revealed" and #self.board.letters == 9 then
-        local sols = self.board:findSolutions()
-        local sol_text
-        if #sols == 0 then
-            sol_text = is_fr and "Aucun mot trouvé." or "No words found."
-        else
-            -- Group by length
-            local by_len = {}
-            for _, w in ipairs(sols) do
-                local l = #w
-                by_len[l] = by_len[l] or {}
-                by_len[l][#by_len[l] + 1] = w
-            end
-            local lines = {}
-            local max_l = 0
-            for l in pairs(by_len) do if l > max_l then max_l = l end end
-            for l = max_l, 2, -1 do
-                local words = by_len[l]
-                if words then
-                    local label = is_fr
-                        and string.format("%d lettres (%d) : ", l, #words)
-                        or  string.format("%d letters (%d): ",  l, #words)
-                    lines[#lines + 1] = label .. table.concat(words, ", ")
-                end
-            end
-            lines[#lines + 1] = ""
-            lines[#lines + 1] = is_fr
-                and string.format("Total : %d mot%s", #sols, #sols > 1 and "s" or "")
-                or  string.format("Total: %d word%s",  #sols, #sols > 1 and "s" or "")
-            sol_text = table.concat(lines, "\n")
-        end
-
-        local sol_w = TextBoxWidget:new{
-            text  = sol_text,
-            face  = Font:getFace("smallinfofont"),
-            width = math.floor(sw * 0.88),
-            height = math.floor(sh * 0.4),
-        }
-        solutions_group[#solutions_group + 1] = sol_w
-    end
-
-    -- Instruction when setup
-    local instr_group = VerticalGroup:new{ align = "center" }
+    local head
     if self.round_phase == "setup" then
         local drawn = #self.board.letters
-        local instr = is_fr
-            and (drawn == 0 and "Tirez 9 lettres (voyelles et consonnes)"
-                 or string.format("Encore %d lettre%s", 9 - drawn, 9 - drawn > 1 and "s" or ""))
-            or  (drawn == 0 and "Draw 9 letters (vowels and consonants)"
-                 or string.format("%d more letter%s", 9 - drawn, 9 - drawn > 1 and "s" or ""))
-        instr_group[#instr_group + 1] = TextWidget:new{
-            text = instr,
-            face = Font:getFace("smallinfofont"),
+        local instr = drawn == 0 and _("Draw 9 letters (vowels and consonants)")
+            or T(_("%1 more letter(s)"), 9 - drawn)
+        head = TextBoxWidget:new{
+            text      = instr,
+            face      = Font:getFace("infofont"),
+            width     = budget_w,
+            alignment = "center",
         }
-    end
-
-    local vs = VerticalSpan:new{ width = Size.span.vertical_large }
-
-    local content = VerticalGroup:new{
-        align = "center",
-        instr_group,
-        vs,
-        tiles_widget,
-        vs,
-        timer_group,
-        solutions_group,
-    }
-    self:buildPortraitLayout(title_bar, content, buttons)
-end
-
-function CLScreen:_buildLetterTiles(sw)
-    -- Display letters as large tiles in a row (or two rows for 9)
-    local letters = self.board.letters
-    if #letters == 0 then
-        return VerticalSpan:new{ width = Size.span.vertical_large }
-    end
-
-    local cols = math.min(#letters, 9)
-    local cell = math.floor(math.min(sw * 0.85, sw * 0.85) / cols)
-    cell = math.max(cell, 30)
-    local fs = math.max(14, math.floor(cell * 0.55))
-    local face = Font:getFace("cfont", fs)
-
-    local row = HorizontalGroup:new{ align = "center" }
-    for _, l in ipairs(letters) do
-        local tile = FrameContainer:new{
-            padding = math.floor(cell * 0.08),
-            margin  = math.floor(cell * 0.04),
-            TextWidget:new{ text = l, face = face },
-        }
-        row[#row + 1] = tile
-    end
-    return row
-end
-
--- ---------------------------------------------------------------------------
--- Numbers layout
--- ---------------------------------------------------------------------------
-
-function CLScreen:_buildNumbersLayout()
-    local sw    = DeviceScreen:getWidth()
-    local sh = DeviceScreen:getHeight()
-    local is_fr = self.lang == "fr"
-    local btn_w = math.floor(sw * 0.92)
-
-    local title_bar = self:buildTitleBar(is_fr and "Chiffres et Lettres" or "Numbers and Letters", function()
-        return {
-            { text = is_fr and "Langue / Language" or "Language / Langue",
-              callback = function() self:openLangMenu() end },
-            self:makeRulesButtonConfig(GAME_RULES_EN, GAME_RULES_FR),
-        }
-    end)
-
-    -- Buttons
-    local btn_rows
-    if self.round_phase == "playing" then
-        btn_rows = {{
-            { text = is_fr and "Solutions" or "Solutions",
-              callback = function() self:onRevealNumbers() end },
-            { text = is_fr and "Manche lettres" or "Letters round",
-              callback = function() self:onNewLetters() end },
-        }}
+        self.timer_widget = nil
     else
-        btn_rows = {{
-            { text = is_fr and "Nouveaux chiffres" or "New numbers",
-              callback = function() self:onNewNumbers() end },
-            { text = is_fr and "Manche lettres" or "Letters round",
+        head = self:_buildTimer(budget_w, budget_h)
+    end
+
+    local group = VerticalGroup:new{ align = "center" }
+    if head then
+        group[#group + 1] = head
+        group[#group + 1] = VerticalSpan:new{ width = 2 * vs }
+    end
+    group[#group + 1] = tiles
+
+    if self.round_phase == "revealed" and #self.board.letters == 9 then
+        local used = group:getSize().h + 2 * vs
+        group[#group + 1] = VerticalSpan:new{ width = 2 * vs }
+        group[#group + 1] = ScrollTextWidget:new{
+            text   = self:_solutionsText(),
+            face   = Font:getFace("smallinfofont"),
+            width  = budget_w,
+            height = math.max(Font:getFace("smallinfofont").size * 3, budget_h - used),
+            dialog = self,
+        }
+        -- getSize() above cached the group's height; drop it so the layout
+        -- sees the solutions box too.
+        group:resetLayout()
+    end
+    return group
+end
+
+-- ---------------------------------------------------------------------------
+-- Numbers round
+-- ---------------------------------------------------------------------------
+
+function CLScreen:_numbersButtons()
+    if self.round_phase == "playing" then
+        return {{
+            { text = _("Solutions"),
+              callback = function() self:onRevealNumbers() end },
+            { text = _("Letters round"),
               callback = function() self:onNewLetters() end },
         }}
     end
+    return {{
+        { text = _("New numbers"),
+          callback = function() self:onNewNumbers() end },
+        { text = _("Letters round"),
+          callback = function() self:onNewLetters() end },
+    }}
+end
 
-    local buttons = ButtonTable:new{
-        shrink_unneeded_width = true,
-        width   = btn_w,
-        buttons = btn_rows,
-    }
+function CLScreen:_buildNumbersBoard(budget_w, budget_h)
+    local vs    = Size.span.vertical_large
+    local nums  = {}
+    for i, n in ipairs(self.board.numbers) do nums[i] = tostring(n) end
 
-    -- Timer
-    local timer_group = VerticalGroup:new{ align = "center" }
-    self.timer_widget = nil
-    if self.round_phase == "playing" then
-        local timer_fs = math.max(20, math.floor(math.min(sw, sh) * 0.10))
-        self.timer_widget = TextWidget:new{
-            text = self:_timerText(),
-            face = Font:getFace("cfont", timer_fs),
-        }
-        timer_group[#timer_group + 1] = self.timer_widget
-        timer_group[#timer_group + 1] = VerticalSpan:new{ width = Size.span.vertical_large }
+    local group = VerticalGroup:new{ align = "center" }
+    local timer = self:_buildTimer(budget_w, budget_h)
+    if timer then
+        group[#group + 1] = timer
+        group[#group + 1] = VerticalSpan:new{ width = 3 * vs }
     end
-
-    -- Numbers display
-    local nums     = self.board.numbers
-    local target   = self.board.target
-    local short    = math.min(sw, sh)
-
-    local num_fs = math.max(18, math.floor(short * 0.07))
-    local nums_text = table.concat(nums, "   ")
-    local nums_w = TextWidget:new{
-        text = nums_text,
-        face = Font:getFace("cfont", num_fs),
+    group[#group + 1] = TileRow:new{
+        values   = nums,
+        slots    = #nums,
+        width    = budget_w,
+        max_cell = math.floor(budget_h * 0.25),
+    }
+    group[#group + 1] = VerticalSpan:new{ width = 3 * vs }
+    group[#group + 1] = TextWidget:new{
+        text      = T(_("Target: %1"), self.board.target),
+        face      = pxFace(math.min(budget_w, budget_h) * 0.13),
+        max_width = budget_w,
     }
 
-    local target_fs = math.max(28, math.floor(short * 0.13))
-    local target_label = is_fr and "Cible : " or "Target: "
-    local target_w = TextWidget:new{
-        text = target_label .. tostring(target),
-        face = Font:getFace("cfont", target_fs),
-    }
-
-    local sep_w = TextWidget:new{
-        text = string.rep("─", 24),
-        face = Font:getFace("smallinfofont"),
-    }
-
-    -- Solutions hint (after reveal: just show the numbers + target again prominently)
-    local sol_group = VerticalGroup:new{ align = "center" }
+    -- After reveal: the numbers and target stay up for the comparison.
     if self.round_phase == "revealed" then
-        local hint = is_fr
-            and "Comparez vos calculs et désignez le gagnant."
-            or  "Compare your calculations and name the winner."
-        sol_group[#sol_group + 1] = VerticalSpan:new{ width = Size.span.vertical_large * 2 }
-        sol_group[#sol_group + 1] = TextWidget:new{
-            text = hint,
-            face = Font:getFace("smallinfofont"),
+        group[#group + 1] = VerticalSpan:new{ width = 2 * vs }
+        group[#group + 1] = TextBoxWidget:new{
+            text      = _("Compare your calculations and name the winner."),
+            face      = Font:getFace("smallinfofont"),
+            width     = budget_w,
+            alignment = "center",
         }
     end
-
-    local vs = VerticalSpan:new{ width = Size.span.vertical_large }
-    local vs2 = VerticalSpan:new{ width = Size.span.vertical_large * 3 }
-
-    local content = VerticalGroup:new{
-        align = "center",
-        timer_group,
-        vs2,
-        nums_w,
-        vs2,
-        sep_w,
-        vs2,
-        target_w,
-        sol_group,
-    }
-    self:buildPortraitLayout(title_bar, content, buttons)
+    return group
 end
 
 -- ---------------------------------------------------------------------------
@@ -476,17 +479,11 @@ end
 
 function CLScreen:updateStatus(msg)
     if msg then ScreenBase.updateStatus(self, msg); return end
-    local is_fr  = self.lang == "fr"
-    local phase  = self.board.phase
     local status
-    if phase == "letters" then
-        status = is_fr
-            and string.format("LETTRES — %d/9 tirées", #self.board.letters)
-            or  string.format("LETTERS — %d/9 drawn", #self.board.letters)
+    if self.board.phase == "letters" then
+        status = self:joinStatus(_("Letters"), T(_("Drawn: %1/9"), #self.board.letters))
     else
-        status = is_fr
-            and string.format("CHIFFRES — Cible : %d", self.board.target)
-            or  string.format("NUMBERS — Target: %d",  self.board.target)
+        status = self:joinStatus(_("Numbers"), T(_("Target: %1"), self.board.target))
     end
     ScreenBase.updateStatus(self, status)
 end
