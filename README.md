@@ -39,7 +39,7 @@ No typing during play — pen and paper only.
 | **Voyelle / Vowel** | Draw a vowel tile |
 | **Consonne / Consonant** | Draw a consonant tile |
 | **Solutions** | Stop timer and reveal all valid words |
-| **Nouvelle partie / New** | Clear the board and start over |
+| **Nouvelle manche / New round** | Clear the board and start over |
 
 ### Numbers round
 
@@ -53,7 +53,7 @@ No typing during play — pen and paper only.
 | Button | Action |
 |--------|--------|
 | **Lettres / Chiffres** | Switch between Letters and Numbers mode |
-| **Options** | Language |
+| **Menu** | New game, Language (word list), Rules |
 | **Rules** | Show rules reminder |
 | **Close** | Exit |
 

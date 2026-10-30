@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0] - 2026-10-30
+
+### Changed
+- The interface text now follows KOReader's language. Until now every label
+  followed the game's Language setting, which only picks the word list;
+  that setting now applies to the letters and dictionary alone.
+- Redesigned play screen, in line with the other games: a full-width action
+  bar and a board that fills the available room. The nine letter slots are
+  shown as tiles from the first draw, the six numbers as a row of tiles
+  under the timer, and the status line reads "Letters · Drawn: n/9" or
+  "Numbers · Target: n" and wraps in landscape instead of being cut off.
+- Title-bar menu in the same order as every other game: New game (new),
+  "Language: EN" (was "Language / Langue"), Rules.
+- The solutions list scrolls when it is longer than the room left for it.
+- New README screenshot.
+
+### Fixed
+- Text was sized in pixels and then scaled again by the screen DPI, so the
+  tiles, the timer and the target came out far too big on high-DPI screens;
+  everything is now fitted to its box.
+- A new numbers round briefly showed the time left over from the previous
+  round instead of the full countdown.
+
 ## [1.3.1] - 2026-10-01
 
 ### Fixed
