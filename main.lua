@@ -20,6 +20,7 @@ local ChiffresLettres = PluginBase:extend{
     name      = "numletters",
     menu_text = _("Numbers and Letters"),
     menu_hint = "tools",
+    party_mode = true,
 }
 
 function ChiffresLettres:createScreen()

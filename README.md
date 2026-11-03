@@ -20,7 +20,7 @@ No typing during play — pen and paper only.
 
 **Letters round:** Draw 9 letters (Vowel / Consonant). Find the longest word using each letter at most once. Longest word wins; tap **Solutions** to reveal all valid words.
 
-**Numbers round:** 6 numbers drawn (1–100) + a 3-digit target. Combine them with +, −, ×, ÷ to reach (or get closest to) the target. Exact match scores 10 pts; within 1–5 scores 7; within 6–10 scores 3.
+**Numbers round:** 6 numbers drawn (1–100) + a 3-digit target. Combine them with +, −, ×, ÷ to reach (or get closest to) the target. Exact match scores 10 pts; within 1–5 scores 7; within 6–10 scores 5.
 
 ## Features
 
@@ -63,7 +63,32 @@ No typing during play — pen and paper only.
 
 **Numbers:** exact target = 10 pts; within 5 = 7 pts; within 10 = 5 pts; furthest away = 0.
 
-Adjust scoring to your house rules — the plugin tracks no scores; players use paper.
+Adjust scoring to your house rules — in solo the plugin tracks no scores; players use paper.
+
+## Multiplayer
+
+Pick **Numbers and Letters · multiplayer** under Tools → Games → Party & quiz
+(or *Mode: Multiplayer* in the menu). Lay the reader in the middle of the
+table: it draws, runs the clock, checks the answers and keeps the scores.
+
+- **Settings:** Players (2–8) and Player names (remembered), Rounds (4, 6, 8
+  or 10), Time (30, 45 or 60 s, default 30 as on the show; the numbers round
+  gets 15 s more), Language (dictionary).
+- **A match** alternates letters and numbers rounds. Everyone writes on
+  paper; when the time is up, tap each player's name to type their word or
+  the number they reached (empty is fine), then **Check answers**.
+- **Letters:** a word counts if it is in the dictionary and uses only the
+  drawn letters. The longest valid word(s) score their length; ties all
+  score.
+- **Numbers:** players say their calculation aloud. Only the closest
+  answer(s) score — exact 10, within 5 → 7, within 10 → 5, further 0 (the
+  TV rule); ties all score. A number the drawn numbers cannot make at all
+  (checked by the built-in solver) scores 0.
+- After each round the screen lists everyone's result, the best possible
+  words or a solution (step by step), and the standings. After the last
+  round a final scoreboard names the winner; **New game** starts again.
+- A match in progress is saved when you close the game and restored next
+  time. Solo play is unchanged.
 
 ## Installation
 
