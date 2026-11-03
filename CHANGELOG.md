@@ -2,6 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.0] - 2026-11-02
+
+### Added
+- Multiplayer mode, listed as "Numbers and Letters · multiplayer" under
+  Tools → Games → Party & quiz (or Mode: Multiplayer in the menu). The
+  reader lies in the middle of the table and runs a match of letters and
+  numbers rounds in turn (Rounds: 4–10) with a clock (Time: 30, 45 or 60 s;
+  the numbers round gets 15 s more). When the time is up, each player's word
+  or number is typed in, then checked: the longest valid word(s) score their
+  length; in the numbers round only the closest answer(s) score (exact 10,
+  within 5 → 7, within 10 → 5), and a number the draw cannot make scores
+  nothing. Each round then shows the best possible words or a solution, and
+  the scores; a final scoreboard names the winner. Player names are
+  remembered, and a match in progress is saved and restored.
+- Separate rules for the multiplayer mode, reachable from the solo rules.
+
+### Changed
+- The countdown now refreshes only its own digits each second, not the
+  whole screen.
+- Family-friendly words: the best words revealed after a letters round
+  leave out vulgar, sexual, scatological, slur and drug-related words
+  (`blocklist.lua`). A player's own word is still checked against the whole
+  dictionary.
+
+### Fixed
+- The English word list is now always numletters' own. It was loaded by a
+  module name shared with the other word games, so with one of them
+  installed the letters round could check words against that game's
+  (different) English list.
+
 ## [1.4.1] - 2026-11-02
 
 ### Changed
