@@ -90,14 +90,18 @@ function Board:findSolutions()
     if self.solutions then return self.solutions end
     if not self.dict or #self.letters == 0 then self.solutions = {}; return {} end
 
-    -- Availability map, keyed the way the dictionary stores words (lowercase),
-    -- so the scan below never has to build an uppercase copy of each entry.
-    -- That matters: this walks the whole dictionary, which is ~105k words in
-    -- English, and one allocation per word dominated the round otherwise.
-    local available = {}
+    -- Availability per letter byte, in the dictionary's case (lowercase).
+    -- This walks the whole dictionary (~105k words in English, ~133k in
+    -- French), so the per-word work is kept to byte reads and two small
+    -- arrays reused across words: no table, substring or uppercase copy is
+    -- allocated for a word that does not fit (that cost ~60 ms per round on a
+    -- desktop, over a second on a reader).
+    local byte = string.byte
+    local available, used = {}, {}
+    for b = 97, 122 do available[b], used[b] = 0, 0 end
     for _, l in ipairs(self.letters) do
-        local k = l:lower()
-        available[k] = (available[k] or 0) + 1
+        local b = byte(l:lower())
+        if available[b] then available[b] = available[b] + 1 end
     end
 
     -- The solutions are revealed (best words), so they leave out the
@@ -108,18 +112,18 @@ function Board:findSolutions()
     local results = {}
     for word in pairs(self.dict) do
         local len = #word
-        if len >= 2 and len <= max_len and not blocked[word:upper()] then
-            local used = {}
-            local ok   = true
-            for k = 1, len do
-                local ch = word:sub(k, k)
-                local n  = (used[ch] or 0) + 1
-                if n > (available[ch] or 0) then
-                    ok = false; break
-                end
-                used[ch] = n
+        if len >= 2 and len <= max_len then
+            local ok, k = true, 1
+            while k <= len do
+                local b = byte(word, k)
+                local n = (used[b] or 99) + 1
+                if n > (available[b] or 0) then ok = false; break end
+                used[b] = n
+                k = k + 1
             end
-            if ok then results[#results + 1] = word end
+            -- reset the counts of the letters seen
+            for j = 1, (ok and len or k - 1) do used[byte(word, j)] = 0 end
+            if ok and not blocked[word:upper()] then results[#results + 1] = word end
         end
     end
 
@@ -179,8 +183,36 @@ local function isSubset(a, s)
     return true
 end
 
+-- How each value was made, packed in one number instead of a table per
+-- value (the tables were most of the solver's time: up to ~40 ms on a
+-- desktop for six numbers, about a second on a reader):
+--   rec = (op * 64 + mhi) * HI_SPAN + hi
+-- op indexes OPS, hi is the larger operand and mhi the numbers it uses; the
+-- other operand uses mask - mhi and is recovered from the value and hi. A
+-- drawn number is stored as -i (its index).
+local OPS = { "+", "×", "÷", "−" }
+local HI_SPAN = 131072   -- > VALUE_CAP
+
+local function packRec(op, mhi, hi)
+    return (op * 64 + mhi) * HI_SPAN + hi
+end
+
+local function unpackRec(rec, value)
+    local hi = rec % HI_SPAN
+    local rest = (rec - hi) / HI_SPAN
+    local mhi = rest % 64
+    local op = (rest - mhi) / 64
+    local lo
+    if op == 1 then lo = value - hi
+    elseif op == 2 then lo = value / hi
+    elseif op == 3 then lo = hi / value
+    else lo = hi - value end
+    -- integer-valued floats would print as "3.0" under Lua 5.3+
+    return OPS[op], hi, math.floor(lo + 0.5), mhi
+end
+
 -- Returns a solver table: { numbers, vals = { [mask] = { [v] = rec } },
--- masks (by size), reachable = { [v] = mask_with_fewest_numbers } }.
+-- reachable = { [v] = mask_with_fewest_numbers } }.
 function Board.solveNumbers(numbers)
     local n = #numbers
     local full = math.floor(2 ^ n) - 1
@@ -193,7 +225,7 @@ function Board.solveNumbers(numbers)
     end
     for i = 1, n do
         local m = math.floor(2 ^ (i - 1))
-        vals[m] = { [numbers[i]] = { leaf = i } }
+        vals[m] = { [numbers[i]] = -i }
     end
     for size = 2, n do
         for _, s in ipairs(by_size[size] or {}) do
@@ -205,28 +237,28 @@ function Board.solveNumbers(numbers)
                     local va, vb = vals[a], vals[b]
                     for x in pairs(va) do
                         for y in pairs(vb) do
-                            local hi, lo, ma, mb = x, y, a, b
-                            if y > x then hi, lo, ma, mb = y, x, b, a end
+                            local hi, lo, ma = x, y, a
+                            if y > x then hi, lo, ma = y, x, b end
                             local r = hi + lo
                             if r <= VALUE_CAP and not out[r] then
-                                out[r] = { op = "+", hi = hi, lo = lo, mhi = ma, mlo = mb }
+                                out[r] = packRec(1, ma, hi)
                             end
                             if lo > 1 then
                                 r = hi * lo
                                 if r <= VALUE_CAP and not out[r] then
-                                    out[r] = { op = "×", hi = hi, lo = lo, mhi = ma, mlo = mb }
+                                    out[r] = packRec(2, ma, hi)
                                 end
                                 if hi % lo == 0 then
                                     r = math.floor(hi / lo)
                                     if not out[r] then
-                                        out[r] = { op = "÷", hi = hi, lo = lo, mhi = ma, mlo = mb }
+                                        out[r] = packRec(3, ma, hi)
                                     end
                                 end
                             end
                             if hi > lo then
                                 r = hi - lo
                                 if not out[r] then
-                                    out[r] = { op = "−", hi = hi, lo = lo, mhi = ma, mlo = mb }
+                                    out[r] = packRec(4, ma, hi)
                                 end
                             end
                         end
@@ -256,10 +288,11 @@ function Board.solutionSteps(solver, v)
     local steps = {}
     local function walk(mask, value)
         local rec = solver.vals[mask][value]
-        if rec.leaf then return end
-        walk(rec.mhi, rec.hi)
-        walk(rec.mlo, rec.lo)
-        steps[#steps + 1] = string.format("%d %s %d = %d", rec.hi, rec.op, rec.lo, value)
+        if rec < 0 then return end
+        local op, hi, lo, mhi = unpackRec(rec, value)
+        walk(mhi, hi)
+        walk(mask - mhi, lo)
+        steps[#steps + 1] = string.format("%d %s %d = %d", hi, op, lo, value)
     end
     walk(m, v)
     return steps

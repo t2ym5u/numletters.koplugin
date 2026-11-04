@@ -128,3 +128,73 @@ describe("English dictionary", function()
     end)
 end)
 
+
+-- 1.6.0: findSolutions counts letters by byte with reused arrays, and the
+-- numbers solver packs its records into numbers. Checked here against plain
+-- reference implementations, plus generous time bounds.
+describe("speed rewrites", function()
+    local Board
+
+    setup(function()
+        Board = require("board")
+    end)
+
+    local function fits(word, letters)
+        local avail = {}
+        for _, l in ipairs(letters) do avail[l:lower()] = (avail[l:lower()] or 0) + 1 end
+        for k = 1, #word do
+            local ch = word:sub(k, k)
+            if not avail[ch] or avail[ch] == 0 then return false end
+            avail[ch] = avail[ch] - 1
+        end
+        return true
+    end
+
+    it("findSolutions lists exactly the dictionary words the draw can make", function()
+        local Blocklist = assert(loadfile(DIR .. "blocklist.lua"))()
+        for _, lang in ipairs{ "en", "fr" } do
+            local b = Board:new{ lang = lang }
+            local blocked = Blocklist.set(lang)
+            for seed = 1, 5 do
+                math.randomseed(seed)
+                b:startLetters()
+                for i = 1, 9 do if i <= 3 then b:drawVowel() else b:drawConsonant() end end
+                local t0 = os.clock()
+                local got = b:findSolutions()
+                assert.is_true(os.clock() - t0 < 0.1)   -- ~60 ms before 1.6.0
+                local want = 0
+                for w in pairs(b.dict) do
+                    if #w >= 2 and #w <= 9 and not blocked[w:upper()] and fits(w, b.letters) then
+                        want = want + 1
+                    end
+                end
+                assert.are.equal(want, #got)
+                for _, w in ipairs(got) do assert.is_true(fits(w, b.letters), w) end
+            end
+        end
+    end)
+
+    it("every solution step of the numbers solver is right", function()
+        for seed = 1, 30 do
+            math.randomseed(seed)
+            local nums = {}
+            for i = 1, 6 do nums[i] = i <= seed % 5 and 25 * i or math.random(1, 10) end
+            local s = Board.solveNumbers(nums)
+            local target = math.random(100, 999)
+            local v = Board.closestValue(s, target)
+            local known = {}
+            for _, x in ipairs(nums) do known[x] = (known[x] or 0) + 1 end
+            for _, step in ipairs(Board.solutionSteps(s, v)) do
+                local a, op, b, r = step:match("^(%d+) (%S+) (%d+) = (%d+)$")
+                a, b, r = tonumber(a), tonumber(b), tonumber(r)
+                assert.is_true((known[a] or 0) > 0 and (known[b] or 0) > 0 and (a ~= b or known[a] > 1), step)
+                local want = op == "+" and a + b or op == "×" and a * b
+                    or op == "÷" and a / b or a - b
+                assert.are.equal(want, r, step)
+                known[a], known[b] = known[a] - 1, known[b] - 1
+                known[r] = (known[r] or 0) + 1
+            end
+            assert.is_true((known[v] or 0) > 0)
+        end
+    end)
+end)

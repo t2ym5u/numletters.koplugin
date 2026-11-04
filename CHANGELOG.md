@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.0] - 2026-11-04
+
+### Changed
+- Finding every word for the drawn letters is about 8 times faster: up to
+  0.1 s on a desktop (over 2 s on a reader) before, about 0.01 s now. Same
+  words listed.
+- The numbers solver (best answer and its steps) is about a third faster
+  (worst seen ~15 ms -> ~11 ms on a desktop). Same answers.
+
 ## [1.5.1] - 2026-11-03
 
 ### Changed
