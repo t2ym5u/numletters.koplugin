@@ -1037,4 +1037,10 @@ function CLScreen:_buildPartyBoard(budget_w, budget_h)
     return group
 end
 
+-- The dictionary is only needed while a game is open: drop it when the
+-- screen closes (the next game reads its language's list again).
+function CLScreen:onCloseWidget()
+    Board.release()
+end
+
 return CLScreen

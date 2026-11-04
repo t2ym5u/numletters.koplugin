@@ -32,10 +32,14 @@ function Board:new(opts)
     return obj
 end
 
--- Each list is loaded from this plugin's own folder, once. Not through
+-- Each list is loaded from this plugin's own folder. Not through
 -- require("words_en"): that module name is shared with the other word games,
 -- which put their own folder first on package.path, so require could hand
 -- back another game's (different) English list.
+-- Only the language played is kept (switching language drops the other
+-- one), it loads with the first board, not with the module, and
+-- Board.release() (the screen closing) drops it: a list is ~5-10 MB once
+-- loaded and reads again in a few tens of milliseconds on a desktop.
 local DICTS = {}
 
 function Board:_loadDict()
@@ -44,9 +48,23 @@ function Board:_loadDict()
         local fn = loadfile(_dir .. "words_" .. lang .. ".lua")
         local ok, d = false, nil
         if fn then ok, d = pcall(fn) end
-        DICTS[lang] = (ok and type(d) == "table") and d or {}
+        DICTS = { [lang] = (ok and type(d) == "table") and d or {} }
     end
     self.dict = DICTS[lang]
+end
+
+-- Drops the loaded dictionary (called when the game screen closes); the
+-- next board reads its language's list again.
+function Board.release()
+    DICTS = {}
+end
+
+-- The languages whose dictionary is loaded now (for the specs).
+function Board.loadedLanguages()
+    local out = {}
+    for lang in pairs(DICTS) do out[#out + 1] = lang end
+    table.sort(out)
+    return out
 end
 
 -- ---------------------------------------------------------------------------
