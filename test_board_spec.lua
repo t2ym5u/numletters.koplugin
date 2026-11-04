@@ -198,3 +198,24 @@ describe("speed rewrites", function()
         end
     end)
 end)
+
+describe("dictionary memory", function()
+    it("is not loaded when the module is required", function()
+        local Fresh = assert(loadfile(DIR .. "board.lua"))()
+        assert.are.same({}, Fresh.loadedLanguages())
+    end)
+
+    it("loads only the language played, and release() drops it", function()
+        local Board = require("board")
+        Board.release()
+        assert.are.same({}, Board.loadedLanguages())
+        local b = Board:new{ lang = "en" }
+        assert.are.same({ "en" }, Board.loadedLanguages())
+        assert.is_true(b.dict["cat"] == true or b.dict["cat"] ~= nil)
+        b.lang = "fr"
+        b:_loadDict()
+        assert.are.same({ "fr" }, Board.loadedLanguages())
+        Board.release()
+        assert.are.same({}, Board.loadedLanguages())
+    end)
+end)
