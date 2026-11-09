@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.4] - 2026-11-09
+
+### Fixed
+- A language picked in the game no longer sticks for good: it holds until
+  KOReader's language changes, then the game follows KOReader again.
+
 ## [1.6.3] - 2026-11-05
 
 ### Fixed

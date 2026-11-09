@@ -214,8 +214,7 @@ end
 local CLScreen = ScreenBase:extend{}
 
 function CLScreen:init()
-    local sys_lang = require("i18n").lang()
-    self.lang = self.plugin:getSetting("lang", (sys_lang == "fr") and "fr" or "en")
+    self.lang = self.plugin:getLang({ "fr", "en" })
     self.board = Board:new{ lang = self.lang }
     -- phase within a round: "setup" | "playing" | "revealed"
     self.round_phase    = "setup"
@@ -341,7 +340,7 @@ function CLScreen:openLangMenu()
         parent     = self,
         on_select  = function(lang)
             self.lang      = lang
-            self.plugin:saveSetting("lang", lang)
+            self.plugin:setLang(lang)
             self.board.lang = lang
             self.board:_loadDict()
             if self.party then
