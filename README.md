@@ -27,7 +27,7 @@ No typing during play — pen and paper only.
 - **Letters mode** — 9-letter draw with Vowel / Consonant buttons, 45-second countdown
 - **Numbers mode** — 6 numbers + 3-digit target, 45-second countdown
 - **Solutions reveal** — all valid dictionary words grouped and sorted by length (letters mode)
-- **Two dictionaries** — EN (105,145 words) and FR (132,778 words), both 3-9 letters, so either language can produce the full nine-tile solutions; shared with `boggle.koplugin`
+- **Two dictionaries** — EN (105,145 words) and FR (160,630 words: 132,778 from a CC0 Scrabble-valid list and an-array-of-french-words, MIT, plus 27,852 forms of the [Grammalecte](https://grammalecte.net) lexicon, Dicollecte, MPL 2.0), both 3-9 letters, so either language can produce the full nine-tile solutions; shared with `boggle.koplugin`
 - **E-ink friendly** — tile display is static during play; only the timer digit refreshes in fast/A2 mode
 
 ## Controls

@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.0] - 2026-11-24
+
+### Changed
+- French accepts 27,852 more words (132,778 -> 160,630), taken from the
+  Grammalecte lexicon (Dicollecte, MPL 2.0) through Boggle's word list:
+  inflected forms and rarer words the old list missed. Familiar, slang,
+  pejorative and sexual words are left out. The solutions reveal may list
+  some of them.
+
 ## [1.6.9] - 2026-11-24
 
 ### Changed
