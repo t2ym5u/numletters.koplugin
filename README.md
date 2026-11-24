@@ -99,8 +99,8 @@ numletters.koplugin/ → KOReader plugins/ folder
 game-common/          → alongside plugins/ (shared library)
 ```
 
-> **Note:** the zip already bundles `board.lua`, `words_en.lua` and `words_fr.lua`
-> from `boggle.koplugin`, so you do **not** need to install Boggle separately.
+> **Note:** the zip carries its own copy of the word lists (`words_en.lua`,
+> `words_fr.lua`), so you do **not** need to install Boggle separately.
 
 ### Manual
 
@@ -112,8 +112,9 @@ game-common/          → alongside plugins/ (shared library)
 
 `numletters.koplugin/` lives inside the
 [koreader-plugins](https://github.com/t2ym5u/koreader-plugins) monorepo.
-`board.lua`, `words_en.lua` and `words_fr.lua` are symlinks to `boggle.koplugin/`
-in the dev tree; they are copied as real files into the distribution zip.
+`words_en.lua` and `words_fr.lua` are copies of `boggle.koplugin/`'s, committed
+as real files: after changing Boggle's lists (French: `tools/lexicon_fr.py`
+there), copy them over. `board.lua` is this plugin's own.
 
 ## License
 
