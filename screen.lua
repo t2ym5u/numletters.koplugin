@@ -231,13 +231,15 @@ end
 
 function CLScreen:_startCountdown(duration)
     self.time_remaining = duration
+    self:cancelScheduled()
     self._tick_gen = (self._tick_gen or 0) + 1
     local gen = self._tick_gen
-    UIManager:scheduleIn(1, function() self:_onTick(gen) end)
+    self:schedule(1, function() self:_onTick(gen) end)
 end
 
 function CLScreen:_stopCountdown()
     self._tick_gen = (self._tick_gen or 0) + 1
+    self:cancelScheduled()
 end
 
 function CLScreen:_onTick(gen)
@@ -252,7 +254,7 @@ function CLScreen:_onTick(gen)
         -- Timer ended: switch to revealed state automatically
         self:_onTimerEnd()
     else
-        UIManager:scheduleIn(1, function() self:_onTick(gen) end)
+        self:schedule(1, function() self:_onTick(gen) end)
     end
 end
 
